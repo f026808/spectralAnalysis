@@ -22,7 +22,7 @@ for i=1:numel(list)
         alphaIndex = find(freq>=8 & freq<13);
         betaIndex = find(freq>=13 & freq <30);
         
-        % Computing the absolute powers
+        % Computing the absolute powers (calculating the average power of each frequency bands to take into account the width of the frequency bands)
         deltaAbsolutePower = mean(10.^(spectra(deltaIndex)/10));
         thetaAbsolutePower = mean(10.^(spectra(thetaIndex)/10));
         alphaAbsolutePower = mean(10.^(spectra(alphaIndex)/10));
