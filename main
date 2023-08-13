@@ -1,0 +1,78 @@
+% Loading the EEG files (after preprocessing)
+clear
+workingDirectory = uigetdir();
+path = fullfile(workingDirectory,'*.set');
+list = dir(path);
+
+eeglab;
+
+for i=1:numel(list)
+    EEG = pop_loadset('filename', list(i).name, 'filepath', workingDirectory);
+    
+    % Extracting the channels names
+    channels = extractfield(EEG.chanlocs,'labels');
+    
+    % Spectral analysis
+    power = zeros(6,EEG.nbchan);
+    
+    for j=1:EEG.nbchan
+        [spectra, freq] = spectopo(EEG.data(j,:,:), 0, EEG.srate, 'freqrange', [1 30], 'plot', 'off', 'freqfac', 2);
+        deltaIndex = find(freq>=0.5 & freq<4);
+        thetaIndex = find(freq>=4 & freq <8);
+        alphaIndex = find(freq>=8 & freq<13);
+        betaIndex = find(freq>=13 & freq <30);
+        
+        % Computing the absolute powers
+        deltaAbsolutePower = mean(10.^(spectra(deltaIndex)/10));
+        thetaAbsolutePower = mean(10.^(spectra(thetaIndex)/10));
+        alphaAbsolutePower = mean(10.^(spectra(alphaIndex)/10));
+        betaAbsolutePower = mean(10.^(spectra(betaIndex)/10));
+        
+        totalAbsolutePower = deltaAbsolutePower + thetaAbsolutePower + alphaAbsolutePower + betaAbsolutePower;
+        
+        % Computing the relative powers
+        deltaRelativePower = deltaAbsolutePower / totalAbsolutePower;
+        power(1,j) = deltaRelativePower;
+        
+        thetaRelativePower = thetaAbsolutePower / totalAbsolutePower;
+        power(2,j) = thetaRelativePower;
+        
+        alphaRelativePower = alphaAbsolutePower / totalAbsolutePower;
+        power(3,j) = alphaRelativePower;
+        
+        betaRelativePower = betaAbsolutePower / totalAbsolutePower;
+        power(4,j) = betaRelativePower;
+        
+        % Computing the spectral edge frequency
+        totalIndex = find(freq>=0.5 & freq<30);
+        totalPower = sum(10.^(spectra(totalIndex)/10));
+        
+        SEF = 0.6;
+        SEFIndex = find(freq>=0.5 & freq<SEF);
+        SEFAbsolutePower = sum(10.^(spectra(SEFIndex)/10));
+        
+        while (SEFAbsolutePower/totalPower)<0.9
+            SEF = SEF + 0.1;
+            SEFIndex = find(freq>=0.5 & freq<SEF);
+        SEFAbsolutePower = sum(10.^(spectra(SEFIndex)/10));
+        end
+        power(5,j) = SEF;
+        
+        % Computing the median frequency
+        medianFrequency = 0.6;
+        medianFrequencyIndex = find(freq>=0.5 & freq<medianFrequency);
+        medianAbsolutePower = sum(10.^(spectra(medianFrequencyIndex)/10));
+        
+        while (medianAbsolutePower/totalPower)<0.5
+            medianFrequency = medianFrequency + 0.1;
+            medianFrequencyIndex = find(freq>=0.5 & freq<medianFrequency);
+            medianAbsolutePower = sum(10.^(spectra(medianFrequencyIndex)/10));
+        end
+        power(6,j) = medianFrequency;
+    end
+    
+    %Saving the data
+    filename = strcat(strrep(list(i).name,'.set',''), '.mat');
+    filename = strcat(workingDirectory,'\',filename);
+    save(filename,'power','channels');
+end
